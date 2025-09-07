@@ -1,0 +1,14 @@
+version: '3.8'
+
+services:
+  postgres:
+    build: .
+    container_name: postgres_app
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: password123
+      POSTGRES_DB: app_db
+    restart: unless-stopped
+    # Sem volumes - dados serão perdidos quando o container for removido
