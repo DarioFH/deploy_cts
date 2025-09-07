@@ -1,11 +1,18 @@
 import React, { useState, useEffect } from 'react'
 import './App.css'
-import { apiService, Registro, CreateRegistroData } from './services/api'
 
 interface FormData {
   nome: string
   email: string
   mensagem: string
+}
+
+interface Registro {
+  id: number
+  nome: string
+  email: string
+  mensagem: string
+  dataCriacao: string
 }
 
 interface FormErrors {
@@ -15,6 +22,8 @@ interface FormErrors {
 }
 
 function App() {
+  console.log('App component rendering...')
+  
   const [formData, setFormData] = useState<FormData>({
     nome: '',
     email: '',
@@ -24,33 +33,28 @@ function App() {
   const [registros, setRegistros] = useState<Registro[]>([])
   const [searchTerm, setSearchTerm] = useState('')
   const [paginaAtual, setPaginaAtual] = useState(1)
-  const [totalRegistros, setTotalRegistros] = useState(0)
-  const [isLoading, setIsLoading] = useState(false)
-  const [isSubmitting, setIsSubmitting] = useState(false)
   const [errors, setErrors] = useState<FormErrors>({})
-  const [apiError, setApiError] = useState<string>('')
+  const [isSubmitting, setIsSubmitting] = useState(false)
+  const [isLoading, setIsLoading] = useState(false)
   
   const registrosPorPagina = 10
 
   // Carregar registros do backend
   const loadRegistros = async () => {
+    console.log('Loading registros from backend...')
     setIsLoading(true)
-    setApiError('')
     
     try {
-      const response = await apiService.getRegistros(
-        paginaAtual,
-        registrosPorPagina,
-        searchTerm
-      )
-      setRegistros(response.data)
-      setTotalRegistros(response.total)
-      console.log('Registros carregados do backend:', response.data.length, 'de', response.total)
+      const response = await fetch('http://localhost:3000/registros')
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`)
+      }
+      const data = await response.json()
+      console.log('Backend response:', data)
+      setRegistros(data.data || [])
     } catch (error) {
-      console.error('Erro ao carregar registros:', error)
-      setApiError(error instanceof Error ? error.message : 'Erro ao carregar registros')
+      console.error('Error loading registros:', error)
       setRegistros([])
-      setTotalRegistros(0)
     } finally {
       setIsLoading(false)
     }
@@ -58,10 +62,10 @@ function App() {
 
   // Carregar registros quando a página ou busca mudar
   useEffect(() => {
+    console.log('useEffect triggered - loading registros')
     loadRegistros()
   }, [paginaAtual, searchTerm])
 
-  // Validação do formulário
   const validateForm = (): boolean => {
     const newErrors: FormErrors = {}
 
@@ -91,17 +95,11 @@ function App() {
     const { name, value } = e.target
     setFormData(prev => ({ ...prev, [name]: value }))
     
-    // Limpar erro do campo quando usuário começar a digitar
     if (errors[name as keyof FormErrors]) {
       setErrors(prev => ({
         ...prev,
         [name]: undefined
       }))
-    }
-    
-    // Limpar erro da API
-    if (apiError) {
-      setApiError('')
     }
   }
 
@@ -113,44 +111,56 @@ function App() {
     }
 
     setIsSubmitting(true)
-    setApiError('')
 
     try {
-      const novoRegistroData: CreateRegistroData = {
-        nome: formData.nome.trim(),
-        email: formData.email.trim(),
-        mensagem: formData.mensagem.trim()
+      const response = await fetch('http://localhost:3000/registros', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          nome: formData.nome.trim(),
+          email: formData.email.trim(),
+          mensagem: formData.mensagem.trim()
+        })
+      })
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`)
       }
 
-      const novoRegistro = await apiService.createRegistro(novoRegistroData)
-      console.log('Registro criado no backend:', novoRegistro)
+      const novoRegistro = await response.json()
+      console.log('Registro criado:', novoRegistro)
       
-      // Limpar formulário
       setFormData({ nome: '', email: '', mensagem: '' })
       setErrors({})
       
-      // Recarregar a lista (voltar para primeira página)
-      setPaginaAtual(1)
+      // Recarregar a lista
       await loadRegistros()
       
     } catch (error) {
       console.error('Erro ao criar registro:', error)
-      setApiError(error instanceof Error ? error.message : 'Erro ao criar registro')
     } finally {
       setIsSubmitting(false)
     }
   }
 
-  const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setSearchTerm(e.target.value)
-    setPaginaAtual(1) // Reset para primeira página ao buscar
-  }
+  const registrosFiltrados = registros.filter(registro =>
+    registro.nome.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    registro.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    registro.mensagem.toLowerCase().includes(searchTerm.toLowerCase())
+  )
+
+  const indiceUltimoRegistro = paginaAtual * registrosPorPagina
+  const indicePrimeiroRegistro = indiceUltimoRegistro - registrosPorPagina
+  const registrosAtuais = registrosFiltrados.slice(indicePrimeiroRegistro, indiceUltimoRegistro)
+  const totalPaginas = Math.ceil(registrosFiltrados.length / registrosPorPagina)
 
   const paginar = (numeroPagina: number) => {
     setPaginaAtual(numeroPagina)
   }
 
-  const totalPaginas = Math.ceil(totalRegistros / registrosPorPagina)
+  console.log('Rendering with', registros.length, 'registros')
 
   return (
     <div className="app">
@@ -163,12 +173,6 @@ function App() {
       <div className="form-card">
         <h2>Adicionar Novo Registro</h2>
         <form onSubmit={handleSubmit} className="form">
-          {apiError && (
-            <div className="api-error">
-              {apiError}
-            </div>
-          )}
-          
           <div className="form-row">
             <div className="form-group">
               <label htmlFor="nome">Nome</label>
@@ -231,12 +235,12 @@ function App() {
       {/* Lista */}
       <div className="list-card">
         <div className="list-header">
-          <h2>Lista de Registros ({totalRegistros})</h2>
+          <h2>Lista de Registros ({registrosFiltrados.length})</h2>
           <input
             type="text"
             placeholder="Buscar..."
             value={searchTerm}
-            onChange={handleSearchChange}
+            onChange={(e) => setSearchTerm(e.target.value)}
             className="search-input"
           />
         </div>
@@ -259,8 +263,8 @@ function App() {
                   </tr>
                 </thead>
                 <tbody>
-                  {registros.length > 0 ? (
-                    registros.map((registro) => (
+                  {registrosAtuais.length > 0 ? (
+                    registrosAtuais.map((registro) => (
                       <tr key={registro.id}>
                         <td>{registro.id}</td>
                         <td>{registro.nome}</td>
