@@ -24,6 +24,10 @@ interface FormErrors {
 function App() {
   console.log('App component rendering...')
   
+  // URL da API a partir da variável de ambiente
+  const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000'
+  console.log('Using API URL:', API_URL)
+  
   const [formData, setFormData] = useState<FormData>({
     nome: '',
     email: '',
@@ -45,7 +49,7 @@ function App() {
     setIsLoading(true)
     
     try {
-      const response = await fetch('http://localhost:3000/registros')
+      const response = await fetch(`${API_URL}/registros`)
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`)
       }
@@ -129,7 +133,7 @@ function App() {
     setIsSubmitting(true)
 
     try {
-      const response = await fetch('http://localhost:3000/registros', {
+      const response = await fetch(`${API_URL}/registros`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
