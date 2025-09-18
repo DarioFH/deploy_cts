@@ -12,10 +12,11 @@ async function bootstrap() {
     transform: true,
   }));
 
-  // Habilitar CORS para o frontend
+  // Habilitar CORS sem restrições
   app.enableCors({
-    origin: 'http://localhost:5173', // Vite default port
-    methods: 'GET,HEAD,PUT,PATCH,POST,DELETE',
+    origin: true, // Permite qualquer origem
+    methods: '*', // Permite todos os métodos HTTP
+    allowedHeaders: '*', // Permite todos os headers
     credentials: true,
   });
 
