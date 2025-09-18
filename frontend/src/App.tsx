@@ -66,6 +66,22 @@ function App() {
     loadRegistros()
   }, [paginaAtual, searchTerm])
 
+  // Refresh automático de 10 em 10 segundos
+  useEffect(() => {
+    console.log('Setting up auto-refresh every 10 seconds')
+    
+    const interval = setInterval(() => {
+      console.log('Auto-refresh: loading registros...')
+      loadRegistros()
+    }, 10000) // 10 segundos
+
+    // Cleanup do interval quando o componente for desmontado
+    return () => {
+      console.log('Cleaning up auto-refresh interval')
+      clearInterval(interval)
+    }
+  }, []) // Array vazio para executar apenas uma vez
+
   const validateForm = (): boolean => {
     const newErrors: FormErrors = {}
 
